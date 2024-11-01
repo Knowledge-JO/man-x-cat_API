@@ -10,4 +10,11 @@ function createJWT(id: string, name: string) {
 	})
 }
 
-export { createJWT }
+function timeInSec(addHrs = 0) {
+	const inSecs = addHrs * 3600
+	const secs = Date.now() / 1000
+
+	return secs + inSecs
+}
+
+export { createJWT, timeInSec }

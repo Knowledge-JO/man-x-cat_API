@@ -9,20 +9,16 @@ import { CustomAPIError } from "../errors/index.js"
 import { StatusCodes } from "http-status-codes"
 
 function errorHandlerMiddleware(
-	err: Errback,
+	err: ErrorRequestHandler,
 	req: Request,
 	res: Response,
 	next: NextFunction
 ) {
 	if (err instanceof CustomAPIError) {
-		res
-			.status(err.statusCode)
-			.json({ message: err.message })
+		res.status(err.statusCode).json({ message: err.message })
 	}
 
-	res
-		.status(StatusCodes.INTERNAL_SERVER_ERROR)
-		.json({ err })
+	res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ err })
 }
 
 export default errorHandlerMiddleware

@@ -1,11 +1,10 @@
 import { Request, Response } from "express"
 import User from "../models/User.js"
 import { StatusCodes } from "http-status-codes"
-import { createJWT } from "../utils/helpers.js"
+import { createJWT, timeInSec } from "../utils/helpers.js"
 import ShortUniqueId from "short-unique-id"
-import NotFoundError from "../errors/not-found.js"
 import { IAuthUser } from "../middlewares/authentication.js"
-import UnAuthenticatedError from "../errors/unauthenticated.js"
+import NotFoundError from "../errors/not-found.js"
 
 async function createUser(req: Request, res: Response) {
 	const { telegramId, name, referredBy } = req.body
@@ -25,7 +24,7 @@ async function createUser(req: Request, res: Response) {
 
 	const user = new User({
 		...req.body,
-		referredBy: referredBy || "",
+		referredBy: "",
 		referralCode,
 	})
 	const token = createJWT(user._id.toString(), name)
@@ -34,7 +33,7 @@ async function createUser(req: Request, res: Response) {
 	const refAccount = await User.findOne({ referralCode: referredBy })
 	if (refAccount) {
 		user.coinsEarned += 500
-
+		user.referredBy = referredBy
 		const refs = refAccount.referrals
 		refAccount.referrals = [...refs, referralCode]
 		refAccount.coinsEarned += 500
@@ -60,23 +59,80 @@ async function getUsers(req: Request, res: Response) {
 async function getUser(req: IAuthUser, res: Response) {
 	const { id } = req.params
 	const user = await User.findOne({ telegramId: id })
-	if (!user) {
-		throw new NotFoundError("User does not exists")
-	}
-
-	if (req.user.id !== user._id.toString()) {
-		throw new UnAuthenticatedError("cannot view this data")
-	}
 
 	res.status(StatusCodes.OK).json({ data: user })
 }
 
-async function updateUserScore(req: IAuthUser, res: Response) {
-	res.send("update user score")
-}
-
 async function updateUserFarmData(req: IAuthUser, res: Response) {
-	res.send("Update user farm data")
+	// total hours - 3hrs
+	// profit per hour - 42
+
+	const { id } = req.params
+	const user = (await User.findOne({ telegramId: id }))!
+
+	const startTime = user.farm.startTime
+	const lastUpdateTime = user.farm.lastUpdateTime
+	const endTime = user.farm.endTime
+	const earned = user.farm.earned
+	const perHr = user.farm.perHr
+	const totalHrs = user.farm.totalHrs
+
+	if (startTime == 0) {
+		// means farm has ended or not started
+		// start farming
+
+		user.farm = {
+			startTime: timeInSec(),
+			lastUpdateTime: timeInSec(),
+			endTime: timeInSec(totalHrs),
+			earned: 0,
+			perHr,
+			totalHrs,
+		}
+		//user.farm.startTime = timeInSec()
+		await user.save()
+
+		res.status(StatusCodes.ACCEPTED).send("Farming started")
+		return
+	}
+
+	const lastUpdate = timeInSec() > endTime ? endTime : lastUpdateTime
+
+	if (lastUpdate == endTime) {
+		// claim rewards
+		// reset to zero
+		user.coinsEarned += earned
+		user.farm = {
+			startTime: 0,
+			lastUpdateTime: 0,
+			endTime: 0,
+			earned: 0,
+			perHr,
+			totalHrs,
+		}
+
+		await user.save()
+
+		res.status(StatusCodes.RESET_CONTENT).send("Farm data reset")
+		return
+	}
+
+	const earnPerSec = perHr / 3600
+	const lostTime = timeInSec() - lastUpdate
+	const earnings = lostTime * earnPerSec
+
+	//user.farm["lastUpdateTime"] = timeInSec()
+	await User.updateOne(
+		{ telegramId: id },
+		{
+			"farm.lastUpdateTime": timeInSec(),
+			"farm.earned": earned + earnings,
+		}
+	)
+	// await user.save()
+	res
+		.status(StatusCodes.OK)
+		.json({ lostTime, earned, maxEarning: perHr * totalHrs })
 }
 
 async function updateUserDailyRewards(req: IAuthUser, res: Response) {
@@ -91,7 +147,6 @@ export {
 	createUser,
 	getUsers,
 	getUser,
-	updateUserScore,
 	updateUserFarmData,
 	updateUserDailyRewards,
 	deleteUser,

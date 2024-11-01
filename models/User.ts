@@ -1,6 +1,4 @@
 import mongoose, { Schema } from "mongoose"
-import jwt from "jsonwebtoken"
-import BadRequestError from "../errors/bad-request.js"
 
 type DailyRewardType = {
 	day1: number

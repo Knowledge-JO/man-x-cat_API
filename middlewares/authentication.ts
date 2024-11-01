@@ -2,6 +2,8 @@ import { NextFunction, Request, Response } from "express"
 import jwt, { JwtPayload } from "jsonwebtoken"
 import UnAuthenticatedError from "../errors/unauthenticated.js"
 import BadRequestError from "../errors/bad-request.js"
+import User from "../models/User.js"
+import NotFoundError from "../errors/not-found.js"
 
 export interface IAuthUser extends Request {
 	user: {
@@ -19,6 +21,7 @@ async function authMiddleware(
 	next: NextFunction
 ) {
 	const authToken = req.headers.authorization
+	const id = req.params.id
 
 	if (!authToken || !authToken.startsWith("Bearer")) {
 		throw new UnAuthenticatedError("Unauthorized")
@@ -34,6 +37,14 @@ async function authMiddleware(
 
 		if (typeof jwtPayload !== "string") {
 			const payload = jwtPayload as IPayload
+			if (id) {
+				const userAcct = await User.findOne({ telegramId: id })
+
+				if (!userAcct) throw new NotFoundError("User not found")
+
+				if (userAcct._id.toString() !== payload.userId)
+					throw new UnAuthenticatedError("Unauthorized access")
+			}
 			req.user = { id: payload.userId }
 			console.log(jwtPayload)
 			next()
@@ -41,7 +52,7 @@ async function authMiddleware(
 			throw new UnAuthenticatedError("Unauthorized access")
 		}
 	} catch (err) {
-		throw new UnAuthenticatedError(`unauthorized access: ${err}`)
+		throw new UnAuthenticatedError(`${err}`)
 	}
 }
 

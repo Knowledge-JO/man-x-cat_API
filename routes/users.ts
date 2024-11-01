@@ -5,7 +5,6 @@ import {
 	getUsers,
 	updateUserDailyRewards,
 	updateUserFarmData,
-	updateUserScore,
 } from "../controllers/users.js"
 
 import authMiddleware, {
@@ -40,13 +39,6 @@ router.get(
 	authMiddlewareWrapper,
 	(req: Request, res: Response) =>
 		controllerWrapper(req, res, getUser)
-)
-
-router.post(
-	"/score/:id",
-	authMiddlewareWrapper,
-	(req: Request, res: Response) =>
-		controllerWrapper(req, res, updateUserScore)
 )
 
 router.post(
