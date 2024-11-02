@@ -1,5 +1,6 @@
 import express, { NextFunction, Request, Response } from "express"
 import {
+	claimFarmRewards,
 	createUser,
 	getUser,
 	getUsers,
@@ -53,6 +54,13 @@ router.post(
 	authMiddlewareWrapper,
 	(req: Request, res: Response) =>
 		controllerWrapper(req, res, updateUserFarmData)
+)
+
+router.post(
+	"/farm/claim/:id",
+	authMiddlewareWrapper,
+	(req: Request, res: Response) =>
+		controllerWrapper(req, res, claimFarmRewards)
 )
 
 export default router

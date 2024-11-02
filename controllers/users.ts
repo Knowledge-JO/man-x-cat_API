@@ -5,6 +5,7 @@ import { createJWT, timeInSec } from "../utils/helpers.js"
 import ShortUniqueId from "short-unique-id"
 import { IAuthUser } from "../middlewares/authentication.js"
 import NotFoundError from "../errors/not-found.js"
+import BadRequestError from "../errors/bad-request.js"
 
 async function createUser(req: Request, res: Response) {
 	const { telegramId, name, referredBy } = req.body
@@ -98,6 +99,40 @@ async function updateUserFarmData(req: IAuthUser, res: Response) {
 
 	const lastUpdate = timeInSec() > endTime ? endTime : lastUpdateTime
 
+	const earnPerSec = perHr / 3600
+
+	const lostTime =
+		lastUpdate == endTime
+			? endTime - lastUpdateTime
+			: timeInSec() - lastUpdate
+
+	const earnings = lostTime * earnPerSec
+
+	await User.updateOne(
+		{ telegramId: id },
+		{
+			"farm.lastUpdateTime":
+				lastUpdate == endTime ? endTime : timeInSec(),
+			"farm.earned": earned + earnings,
+		}
+	)
+	res
+		.status(StatusCodes.OK)
+		.json({ earned, maxEarning: perHr * totalHrs, totalHrs })
+}
+
+async function claimFarmRewards(req: IAuthUser, res: Response) {
+	const { id } = req.params
+	const user = (await User.findOne({ telegramId: id }))!
+
+	const startTime = user.farm.startTime
+	const lastUpdateTime = user.farm.lastUpdateTime
+	const endTime = user.farm.endTime
+	const earned = user.farm.earned
+	const perHr = user.farm.perHr
+	const totalHrs = user.farm.totalHrs
+
+	const lastUpdate = timeInSec() > endTime ? endTime : lastUpdateTime
 	if (lastUpdate == endTime) {
 		// claim rewards
 		// reset to zero
@@ -113,26 +148,17 @@ async function updateUserFarmData(req: IAuthUser, res: Response) {
 
 		await user.save()
 
-		res.status(StatusCodes.RESET_CONTENT).send("Farm data reset")
+		res
+			.status(StatusCodes.RESET_CONTENT)
+			.send("Rewards claimed - content reset")
 		return
 	}
 
-	const earnPerSec = perHr / 3600
-	const lostTime = timeInSec() - lastUpdate
-	const earnings = lostTime * earnPerSec
+	if (startTime == 0) {
+		throw new BadRequestError("Farming not started")
+	}
 
-	//user.farm["lastUpdateTime"] = timeInSec()
-	await User.updateOne(
-		{ telegramId: id },
-		{
-			"farm.lastUpdateTime": timeInSec(),
-			"farm.earned": earned + earnings,
-		}
-	)
-	// await user.save()
-	res
-		.status(StatusCodes.OK)
-		.json({ lostTime, earned, maxEarning: perHr * totalHrs })
+	res.status(StatusCodes.OK).send("Farming in progress")
 }
 
 async function updateUserDailyRewards(req: IAuthUser, res: Response) {
@@ -150,4 +176,5 @@ export {
 	updateUserFarmData,
 	updateUserDailyRewards,
 	deleteUser,
+	claimFarmRewards,
 }
