@@ -4,6 +4,7 @@ import {
 	createUser,
 	getUser,
 	getUsers,
+	startFarming,
 	updateUserDailyRewards,
 	updateUserFarmData,
 } from "../controllers/users.js"
@@ -61,6 +62,13 @@ router.post(
 	authMiddlewareWrapper,
 	(req: Request, res: Response) =>
 		controllerWrapper(req, res, claimFarmRewards)
+)
+
+router.post(
+	"/farm/start/:id",
+	authMiddlewareWrapper,
+	(req: Request, res: Response) =>
+		controllerWrapper(req, res, startFarming)
 )
 
 export default router

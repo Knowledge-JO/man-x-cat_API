@@ -1,7 +1,8 @@
 import "express-async-errors"
 import express from "express"
-import userRouter from "./routes/users.js"
 import dotenv from "dotenv"
+import cors from "cors"
+import userRouter from "./routes/users.js"
 import notFoundMiddleware from "./middlewares/not-found.js"
 import errorHandlerMiddleware from "./middlewares/error-handler.js"
 import connectDB from "./db/connect.js"
@@ -9,7 +10,7 @@ import connectDB from "./db/connect.js"
 dotenv.config()
 
 const app = express()
-
+app.use(cors({ origin: "http://localhost:5173" }))
 app.use(express.json())
 
 app.use("/api/v1/users", userRouter)

@@ -18,6 +18,7 @@ async function createUser(req: Request, res: Response) {
 			userAccount.name
 		)
 		res.status(StatusCodes.ACCEPTED).json({ token })
+		return
 	}
 
 	const uid = new ShortUniqueId({ length: 10 })
@@ -64,17 +65,11 @@ async function getUser(req: IAuthUser, res: Response) {
 	res.status(StatusCodes.OK).json({ data: user })
 }
 
-async function updateUserFarmData(req: IAuthUser, res: Response) {
-	// total hours - 3hrs
-	// profit per hour - 42
-
+async function startFarming(req: IAuthUser, res: Response) {
 	const { id } = req.params
 	const user = (await User.findOne({ telegramId: id }))!
 
 	const startTime = user.farm.startTime
-	const lastUpdateTime = user.farm.lastUpdateTime
-	const endTime = user.farm.endTime
-	const earned = user.farm.earned
 	const perHr = user.farm.perHr
 	const totalHrs = user.farm.totalHrs
 
@@ -93,8 +88,33 @@ async function updateUserFarmData(req: IAuthUser, res: Response) {
 		//user.farm.startTime = timeInSec()
 		await user.save()
 
-		res.status(StatusCodes.ACCEPTED).send("Farming started")
+		res
+			.status(StatusCodes.ACCEPTED)
+			.json({ started: true, message: "Farming started" })
 		return
+	}
+
+	res
+		.status(StatusCodes.ACCEPTED)
+		.json({ started: true, message: "Farming in progess" })
+}
+
+async function updateUserFarmData(req: IAuthUser, res: Response) {
+	// total hours - 3hrs
+	// profit per hour - 42
+
+	const { id } = req.params
+	const user = (await User.findOne({ telegramId: id }))!
+
+	const startTime = user.farm.startTime
+	const lastUpdateTime = user.farm.lastUpdateTime
+	const endTime = user.farm.endTime
+	const earned = user.farm.earned
+	const perHr = user.farm.perHr
+	const totalHrs = user.farm.totalHrs
+
+	if (startTime == 0) {
+		throw new BadRequestError("Farming not started")
 	}
 
 	const lastUpdate = timeInSec() > endTime ? endTime : lastUpdateTime
@@ -116,9 +136,13 @@ async function updateUserFarmData(req: IAuthUser, res: Response) {
 			"farm.earned": earned + earnings,
 		}
 	)
-	res
-		.status(StatusCodes.OK)
-		.json({ earned, maxEarning: perHr * totalHrs, totalHrs })
+	res.status(StatusCodes.OK).json({
+		earned,
+		maxEarning: perHr * totalHrs,
+		totalHrs,
+		started: true,
+		ended: lastUpdate === endTime,
+	})
 }
 
 async function claimFarmRewards(req: IAuthUser, res: Response) {
@@ -148,9 +172,10 @@ async function claimFarmRewards(req: IAuthUser, res: Response) {
 
 		await user.save()
 
-		res
-			.status(StatusCodes.RESET_CONTENT)
-			.send("Rewards claimed - content reset")
+		res.status(StatusCodes.RESET_CONTENT).json({
+			started: false,
+			message: "Rewards claimed - content reset",
+		})
 		return
 	}
 
@@ -158,7 +183,9 @@ async function claimFarmRewards(req: IAuthUser, res: Response) {
 		throw new BadRequestError("Farming not started")
 	}
 
-	res.status(StatusCodes.OK).send("Farming in progress")
+	res
+		.status(StatusCodes.OK)
+		.json({ started: true, message: "Farming in progress" })
 }
 
 async function updateUserDailyRewards(req: IAuthUser, res: Response) {
@@ -177,4 +204,5 @@ export {
 	updateUserDailyRewards,
 	deleteUser,
 	claimFarmRewards,
+	startFarming,
 }
