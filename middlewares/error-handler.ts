@@ -16,6 +16,7 @@ function errorHandlerMiddleware(
 ) {
 	if (err instanceof CustomAPIError) {
 		res.status(err.statusCode).json({ message: err.message })
+		return
 	}
 
 	res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ err })
