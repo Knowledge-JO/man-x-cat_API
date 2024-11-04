@@ -232,7 +232,12 @@ async function updateUserDailyRewards(req: IAuthUser, res: Response) {
 		})
 		return
 	}
-	res.status(StatusCodes.OK).json({ currentDay })
+	res
+		.status(StatusCodes.OK)
+		.json({
+			currentDay,
+			totalRewardsEarned: user.dailyReward.totalRewardsEarned,
+		})
 }
 
 async function resetDailyRewards(req: IAuthUser, res: Response) {
