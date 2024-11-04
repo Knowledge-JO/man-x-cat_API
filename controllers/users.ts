@@ -208,22 +208,21 @@ async function updateUserDailyRewards(req: IAuthUser, res: Response) {
 	const nextStartTime = user.dailyReward.nextStartTime
 
 	if (timeInSec() >= nextStartTime) {
+		const nextDay = days[index < days.length - 1 ? index + 1 : 0]
 		await User.updateOne(
 			{ telegramId: id },
 			{
-				"dailyReward.currentDay": days[index < days.length - 1 ? index + 1 : 0],
+				"dailyReward.currentDay": nextDay,
 				"dailyReward.startTime": timeInSec(),
-				"dailyReward.nextStartTime": timeInSec(0.1),
-				"dailyReward.resetTime": timeInSec(0.2),
+				"dailyReward.nextStartTime": timeInSec(24),
+				"dailyReward.resetTime": timeInSec(48),
 			}
 		)
 		// console.log(days[index < days.length - 1 ? index + 1 : 0])
-		res
-			.status(StatusCodes.OK)
-			.json({
-				currentDay: days[index < days.length - 1 ? index + 1 : 0],
-				message: "daily reward claimed",
-			})
+		res.status(StatusCodes.OK).json({
+			currentDay: nextDay,
+			message: "daily reward claimed",
+		})
 		return
 	}
 	res.status(StatusCodes.OK).json({ currentDay })
@@ -261,8 +260,8 @@ async function reset(id: number): Promise<boolean> {
 			{
 				"dailyReward.currentDay": "day1",
 				"dailyReward.startTime": timeInSec(),
-				"dailyReward.nextStartTime": timeInSec(0.1),
-				"dailyReward.resetTime": timeInSec(0.2),
+				"dailyReward.nextStartTime": timeInSec(24), // next 24hrs
+				"dailyReward.resetTime": timeInSec(48), // next 48hrs
 			}
 		)
 		return true
