@@ -1,6 +1,7 @@
 import mongoose, { Schema } from "mongoose"
+import { timeInSec } from "../utils/helpers.js"
 
-type DailyRewardType = {
+export type DailyRewardType = {
 	day1: number
 	day2: number
 	day3: number
@@ -10,14 +11,14 @@ type DailyRewardType = {
 	day7: number
 }
 
-type DayType = keyof DailyRewardType
+export type DayType = keyof DailyRewardType
 
 type DailyDataType = DailyRewardType & {
 	currentDay: DayType
 	totalRewardsEarned: number
 	startTime: number
-	endTime: number
 	nextStartTime: number
+	resetTime: number
 }
 
 const dailyRewardDefaultData: DailyDataType = {
@@ -30,9 +31,9 @@ const dailyRewardDefaultData: DailyDataType = {
 	day7: 220,
 	currentDay: "day1",
 	totalRewardsEarned: 0,
-	startTime: 0,
-	endTime: 0,
-	nextStartTime: 0,
+	startTime: timeInSec(),
+	nextStartTime: timeInSec(),
+	resetTime: timeInSec(24),
 }
 
 type FarmType = {
@@ -53,7 +54,7 @@ const farmDefaultData: FarmType = {
 	totalHrs: 3,
 }
 
-interface IUser {
+export interface IUser {
 	name: string
 	telegramId: number
 	coinsEarned: number

@@ -46,7 +46,7 @@ async function authMiddleware(
 					throw new UnAuthenticatedError("Unauthorized access")
 			}
 			req.user = { id: payload.userId }
-			console.log(jwtPayload)
+			//console.log(jwtPayload)
 			next()
 		} else {
 			throw new UnAuthenticatedError("Unauthorized access")

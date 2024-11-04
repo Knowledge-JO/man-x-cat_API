@@ -1,11 +1,12 @@
 import { Request, Response } from "express"
-import User from "../models/User.js"
+import User, { DayType, IUser } from "../models/User.js"
 import { StatusCodes } from "http-status-codes"
 import { createJWT, timeInSec } from "../utils/helpers.js"
 import ShortUniqueId from "short-unique-id"
 import { IAuthUser } from "../middlewares/authentication.js"
 import NotFoundError from "../errors/not-found.js"
 import BadRequestError from "../errors/bad-request.js"
+import { Document, Types } from "mongoose"
 
 async function createUser(req: Request, res: Response) {
 	const { telegramId, name, referredBy } = req.body
@@ -13,10 +14,7 @@ async function createUser(req: Request, res: Response) {
 	const userAccount = await User.findOne({ telegramId })
 
 	if (userAccount) {
-		const token = createJWT(
-			userAccount._id.toString(),
-			userAccount.name
-		)
+		const token = createJWT(userAccount._id.toString(), userAccount.name)
 		res.status(StatusCodes.ACCEPTED).json({ token })
 		return
 	}
@@ -53,14 +51,12 @@ async function getUsers(req: Request, res: Response) {
 		.select("name coinsEarned")
 		.sort("-coinsEarned")
 
-	res
-		.status(StatusCodes.OK)
-		.json({ data: users, NbHits: users.length })
+	res.status(StatusCodes.OK).json({ data: users, NbHits: users.length })
 }
 
 async function getUser(req: IAuthUser, res: Response) {
 	const { id } = req.params
-	const user = await User.findOne({ telegramId: id })
+	const user = (await User.findOne({ telegramId: id }))!
 
 	res.status(StatusCodes.OK).json({ data: user })
 }
@@ -122,17 +118,14 @@ async function updateUserFarmData(req: IAuthUser, res: Response) {
 	const earnPerSec = perHr / 3600
 
 	const lostTime =
-		lastUpdate == endTime
-			? endTime - lastUpdateTime
-			: timeInSec() - lastUpdate
+		lastUpdate == endTime ? endTime - lastUpdateTime : timeInSec() - lastUpdate
 
 	const earnings = lostTime * earnPerSec
 
 	await User.updateOne(
 		{ telegramId: id },
 		{
-			"farm.lastUpdateTime":
-				lastUpdate == endTime ? endTime : timeInSec(),
+			"farm.lastUpdateTime": lastUpdate == endTime ? endTime : timeInSec(),
 			"farm.earned": earned + earnings,
 		}
 	)
@@ -189,11 +182,92 @@ async function claimFarmRewards(req: IAuthUser, res: Response) {
 }
 
 async function updateUserDailyRewards(req: IAuthUser, res: Response) {
-	res.send("update daily rewards")
+	// update daily reward
+	// day 1 - day7
+	// 1 day missed, back to day 1
+	// day7 claimed - back to day 1
+	const { id } = req.params
+
+	// reset
+	await reset(+id)
+
+	const user = (await User.findOne({ telegramId: id }))!
+
+	const days: DayType[] = [
+		"day1",
+		"day2",
+		"day3",
+		"day4",
+		"day5",
+		"day6",
+		"day7",
+	]
+
+	const currentDay = user.dailyReward.currentDay
+	const index = days.indexOf(currentDay)
+	const nextStartTime = user.dailyReward.nextStartTime
+
+	if (timeInSec() >= nextStartTime) {
+		await User.updateOne(
+			{ telegramId: id },
+			{
+				"dailyReward.currentDay": days[index < days.length - 1 ? index + 1 : 0],
+				"dailyReward.startTime": timeInSec(),
+				"dailyReward.nextStartTime": timeInSec(0.1),
+				"dailyReward.resetTime": timeInSec(0.2),
+			}
+		)
+		// console.log(days[index < days.length - 1 ? index + 1 : 0])
+		res
+			.status(StatusCodes.OK)
+			.json({
+				currentDay: days[index < days.length - 1 ? index + 1 : 0],
+				message: "daily reward claimed",
+			})
+		return
+	}
+	res.status(StatusCodes.OK).json({ currentDay })
 }
 
-async function deleteUser(req: IAuthUser, res: Response) {
-	res.send("delete user")
+async function resetDailyRewards(req: IAuthUser, res: Response) {
+	// if date now greater than reset time, set daily rewards back to 1
+	const { id } = req.params
+
+	const user = (await User.findOne({ telegramId: id }))!
+
+	const resetted = await reset(+id)
+
+	if (resetted) {
+		res.status(StatusCodes.RESET_CONTENT).json({
+			currentDay: user.dailyReward.currentDay,
+			message: "rewards reset",
+		})
+		return
+	}
+
+	res.status(StatusCodes.OK).json({
+		currentDay: user.dailyReward.currentDay,
+		message: "reset time not reached",
+	})
+}
+
+async function reset(id: number): Promise<boolean> {
+	// reset
+	const user = (await User.findOne({ telegramId: id }))!
+	const resetTime = user.dailyReward.resetTime
+	if (timeInSec() > resetTime) {
+		await User.updateOne(
+			{ telegramId: id },
+			{
+				"dailyReward.currentDay": "day1",
+				"dailyReward.startTime": timeInSec(),
+				"dailyReward.nextStartTime": timeInSec(0.1),
+				"dailyReward.resetTime": timeInSec(0.2),
+			}
+		)
+		return true
+	}
+	return false
 }
 
 export {
@@ -202,7 +276,7 @@ export {
 	getUser,
 	updateUserFarmData,
 	updateUserDailyRewards,
-	deleteUser,
 	claimFarmRewards,
 	startFarming,
+	resetDailyRewards,
 }

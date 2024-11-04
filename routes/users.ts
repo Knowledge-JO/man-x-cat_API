@@ -7,11 +7,10 @@ import {
 	startFarming,
 	updateUserDailyRewards,
 	updateUserFarmData,
+	resetDailyRewards,
 } from "../controllers/users.js"
 
-import authMiddleware, {
-	IAuthUser,
-} from "../middlewares/authentication.js"
+import authMiddleware, { IAuthUser } from "../middlewares/authentication.js"
 
 const router = express.Router()
 
@@ -31,16 +30,10 @@ function controllerWrapper(
 	return func(req as IAuthUser, res)
 }
 
-router
-	.route("/")
-	.post(createUser)
-	.get(authMiddlewareWrapper, getUsers)
+router.route("/").post(createUser).get(authMiddlewareWrapper, getUsers)
 
-router.get(
-	"/:id",
-	authMiddlewareWrapper,
-	(req: Request, res: Response) =>
-		controllerWrapper(req, res, getUser)
+router.get("/:id", authMiddlewareWrapper, (req: Request, res: Response) =>
+	controllerWrapper(req, res, getUser)
 )
 
 router.post(
@@ -51,24 +44,26 @@ router.post(
 )
 
 router.post(
-	"/farm/:id",
+	"/daily/reset/:id",
 	authMiddlewareWrapper,
 	(req: Request, res: Response) =>
-		controllerWrapper(req, res, updateUserFarmData)
+		controllerWrapper(req, res, resetDailyRewards)
+)
+
+router.post("/farm/:id", authMiddlewareWrapper, (req: Request, res: Response) =>
+	controllerWrapper(req, res, updateUserFarmData)
 )
 
 router.post(
 	"/farm/claim/:id",
 	authMiddlewareWrapper,
-	(req: Request, res: Response) =>
-		controllerWrapper(req, res, claimFarmRewards)
+	(req: Request, res: Response) => controllerWrapper(req, res, claimFarmRewards)
 )
 
 router.post(
 	"/farm/start/:id",
 	authMiddlewareWrapper,
-	(req: Request, res: Response) =>
-		controllerWrapper(req, res, startFarming)
+	(req: Request, res: Response) => controllerWrapper(req, res, startFarming)
 )
 
 export default router
