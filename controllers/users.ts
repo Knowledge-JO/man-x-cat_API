@@ -209,9 +209,15 @@ async function updateUserDailyRewards(req: IAuthUser, res: Response) {
 
 	if (timeInSec() >= nextStartTime) {
 		const nextDay = days[index < days.length - 1 ? index + 1 : 0]
+		const totalEarned =
+			user.dailyReward.totalRewardsEarned +
+			user.dailyReward[user.dailyReward["currentDay"]]
 		await User.updateOne(
 			{ telegramId: id },
 			{
+				coinsEarned:
+					user.coinsEarned + user.dailyReward[user.dailyReward["currentDay"]],
+				"dailyReward.totalRewardsEarned": totalEarned,
 				"dailyReward.currentDay": nextDay,
 				"dailyReward.startTime": timeInSec(),
 				"dailyReward.nextStartTime": timeInSec(24),
@@ -221,6 +227,7 @@ async function updateUserDailyRewards(req: IAuthUser, res: Response) {
 		// console.log(days[index < days.length - 1 ? index + 1 : 0])
 		res.status(StatusCodes.OK).json({
 			currentDay: nextDay,
+			totalRewardsEarned: totalEarned,
 			message: "daily reward claimed",
 		})
 		return
@@ -229,16 +236,17 @@ async function updateUserDailyRewards(req: IAuthUser, res: Response) {
 }
 
 async function resetDailyRewards(req: IAuthUser, res: Response) {
-	// if date now greater than reset time, set daily rewards back to 1
+	// if date.now greater than reset time, set daily rewards back to 1
 	const { id } = req.params
 
 	const user = (await User.findOne({ telegramId: id }))!
 
 	const resetted = await reset(+id)
-
+	const totalRewardsEarned = user.dailyReward.totalRewardsEarned
 	if (resetted) {
 		res.status(StatusCodes.RESET_CONTENT).json({
 			currentDay: user.dailyReward.currentDay,
+			totalRewardsEarned,
 			message: "rewards reset",
 		})
 		return
@@ -246,6 +254,7 @@ async function resetDailyRewards(req: IAuthUser, res: Response) {
 
 	res.status(StatusCodes.OK).json({
 		currentDay: user.dailyReward.currentDay,
+		totalRewardsEarned,
 		message: "reset time not reached",
 	})
 }
