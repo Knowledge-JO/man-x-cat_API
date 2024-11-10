@@ -1,9 +1,11 @@
 import { NextFunction, Request, Response } from "express"
 import jwt, { JwtPayload } from "jsonwebtoken"
-import UnAuthenticatedError from "../errors/unauthenticated.js"
-import BadRequestError from "../errors/bad-request.js"
 import User from "../models/User.js"
-import NotFoundError from "../errors/not-found.js"
+import {
+	NotFoundError,
+	BadRequestError,
+	UnAuthenticatedError,
+} from "../errors/index.js"
 
 export interface IAuthUser extends Request {
 	user: {
