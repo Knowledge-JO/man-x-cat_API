@@ -3,6 +3,7 @@ import express from "express"
 import dotenv from "dotenv"
 import cors from "cors"
 import userRouter from "./routes/users.js"
+import catRouter from "./routes/cats.js"
 import notFoundMiddleware from "./middlewares/not-found.js"
 import errorHandlerMiddleware from "./middlewares/error-handler.js"
 import connectDB from "./db/connect.js"
@@ -14,6 +15,7 @@ app.use(cors({ origin: "*" }))
 app.use(express.json())
 
 app.use("/api/v1/users", userRouter)
+app.use("/api/v1/cats", catRouter)
 
 app.use(notFoundMiddleware)
 app.use(errorHandlerMiddleware)

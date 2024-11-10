@@ -1,4 +1,4 @@
-import express, { NextFunction, Request, Response } from "express"
+import express, { Request, Response } from "express"
 import {
 	claimFarmRewards,
 	createUser,
@@ -9,26 +9,9 @@ import {
 	updateUserFarmData,
 	resetDailyRewards,
 } from "../controllers/users.js"
-
-import authMiddleware, { IAuthUser } from "../middlewares/authentication.js"
+import { authMiddlewareWrapper, controllerWrapper } from "./wrapper.js"
 
 const router = express.Router()
-
-function authMiddlewareWrapper(
-	req: Request,
-	res: Response,
-	next: NextFunction
-) {
-	return authMiddleware(req as IAuthUser, res, next)
-}
-
-function controllerWrapper(
-	req: Request,
-	res: Response,
-	func: (req: IAuthUser, res: Response) => Promise<void>
-) {
-	return func(req as IAuthUser, res)
-}
 
 router.route("/").post(createUser).get(authMiddlewareWrapper, getUsers)
 

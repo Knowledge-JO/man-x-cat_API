@@ -1,12 +1,10 @@
 import { Request, Response } from "express"
-import User, { DayType, IUser } from "../models/User.js"
+import User, { DayType } from "../models/User.js"
 import { StatusCodes } from "http-status-codes"
 import { createJWT, timeInSec } from "../utils/helpers.js"
 import ShortUniqueId from "short-unique-id"
 import { IAuthUser } from "../middlewares/authentication.js"
-import NotFoundError from "../errors/not-found.js"
-import BadRequestError from "../errors/bad-request.js"
-import { Document, Types } from "mongoose"
+import { BadRequestError } from "../errors/index.js"
 
 async function createUser(req: Request, res: Response) {
 	const { telegramId, name, referredBy } = req.body
@@ -56,7 +54,7 @@ async function getUsers(req: Request, res: Response) {
 
 async function getUser(req: IAuthUser, res: Response) {
 	const { id } = req.params
-	const user = (await User.findOne({ telegramId: id }))!
+	const user = (await User.findOne({ telegramId: id }))! // user already verified in authentication
 
 	res.status(StatusCodes.OK).json({ data: user })
 }
@@ -100,7 +98,7 @@ async function updateUserFarmData(req: IAuthUser, res: Response) {
 	// profit per hour - 42
 
 	const { id } = req.params
-	const user = (await User.findOne({ telegramId: id }))!
+	const user = (await User.findOne({ telegramId: id }))! // user already verified in authentication
 
 	const startTime = user.farm.startTime
 	const lastUpdateTime = user.farm.lastUpdateTime
@@ -140,7 +138,7 @@ async function updateUserFarmData(req: IAuthUser, res: Response) {
 
 async function claimFarmRewards(req: IAuthUser, res: Response) {
 	const { id } = req.params
-	const user = (await User.findOne({ telegramId: id }))!
+	const user = (await User.findOne({ telegramId: id }))! // user already verified in authentication
 
 	const startTime = user.farm.startTime
 	const lastUpdateTime = user.farm.lastUpdateTime
@@ -191,7 +189,7 @@ async function updateUserDailyRewards(req: IAuthUser, res: Response) {
 	// reset
 	await reset(+id)
 
-	const user = (await User.findOne({ telegramId: id }))!
+	const user = (await User.findOne({ telegramId: id }))! // user already verified in authentication
 
 	const days: DayType[] = [
 		"day1",
@@ -224,7 +222,7 @@ async function updateUserDailyRewards(req: IAuthUser, res: Response) {
 				"dailyReward.resetTime": timeInSec(48),
 			}
 		)
-		// console.log(days[index < days.length - 1 ? index + 1 : 0])
+
 		res.status(StatusCodes.OK).json({
 			currentDay: nextDay,
 			totalRewardsEarned: totalEarned,
@@ -232,19 +230,17 @@ async function updateUserDailyRewards(req: IAuthUser, res: Response) {
 		})
 		return
 	}
-	res
-		.status(StatusCodes.OK)
-		.json({
-			currentDay,
-			totalRewardsEarned: user.dailyReward.totalRewardsEarned,
-		})
+	res.status(StatusCodes.OK).json({
+		currentDay,
+		totalRewardsEarned: user.dailyReward.totalRewardsEarned,
+	})
 }
 
 async function resetDailyRewards(req: IAuthUser, res: Response) {
 	// if date.now greater than reset time, set daily rewards back to 1
 	const { id } = req.params
 
-	const user = (await User.findOne({ telegramId: id }))!
+	const user = (await User.findOne({ telegramId: id }))! // user already verified in authentication
 
 	const resetted = await reset(+id)
 	const totalRewardsEarned = user.dailyReward.totalRewardsEarned
@@ -266,7 +262,7 @@ async function resetDailyRewards(req: IAuthUser, res: Response) {
 
 async function reset(id: number): Promise<boolean> {
 	// reset
-	const user = (await User.findOne({ telegramId: id }))!
+	const user = (await User.findOne({ telegramId: id }))! // user already verified in authentication
 	const resetTime = user.dailyReward.resetTime
 	if (timeInSec() > resetTime) {
 		await User.updateOne(

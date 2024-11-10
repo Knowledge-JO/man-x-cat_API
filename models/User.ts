@@ -21,6 +21,12 @@ type DailyDataType = DailyRewardType & {
 	resetTime: number
 }
 
+export type OwnedCatType = {
+	catId: string
+	outputQuantityTime: number
+	numberOwned: number
+}
+
 const dailyRewardDefaultData: DailyDataType = {
 	day1: 100,
 	day2: 120,
@@ -63,6 +69,7 @@ export interface IUser {
 	referrals: Array<string>
 	referralCode: string
 	referredBy: string
+	ownedCats: OwnedCatType[]
 }
 
 const userSchema: Schema = new Schema(
@@ -105,6 +112,12 @@ const userSchema: Schema = new Schema(
 			type: String,
 			required: false,
 			default: "",
+		},
+
+		ownedCats: {
+			type: Array,
+			required: false,
+			default: [],
 		},
 	},
 	{ timestamps: true }
