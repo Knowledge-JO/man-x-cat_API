@@ -56,14 +56,15 @@ const farmDefaultData: FarmType = {
 	lastUpdateTime: 0,
 	endTime: 0,
 	earned: 0,
-	perHr: 42,
+	perHr: 0,
 	totalHrs: 3,
 }
 
 export interface IUser {
 	name: string
 	telegramId: number
-	coinsEarned: number
+	manxEarned: number
+	goldEarned: number
 	farm: FarmType
 	dailyReward: DailyDataType
 	referrals: Array<string>
@@ -84,7 +85,8 @@ const userSchema: Schema = new Schema(
 			type: Number,
 			required: [true, "telegram userId must be provided"],
 		},
-		coinsEarned: { type: Number, required: false, default: 100 },
+		manxEarned: { type: Number, required: false, default: 0 },
+		goldEarned: { type: Number, required: false, default: 100 },
 		farm: {
 			type: Object,
 			required: false,

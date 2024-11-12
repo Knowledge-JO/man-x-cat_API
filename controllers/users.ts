@@ -4,7 +4,7 @@ import { StatusCodes } from "http-status-codes"
 import { createJWT, timeInSec } from "../utils/helpers.js"
 import ShortUniqueId from "short-unique-id"
 import { IAuthUser } from "../middlewares/authentication.js"
-import { BadRequestError } from "../errors/index.js"
+import { BadRequestError, NotAllowedError } from "../errors/index.js"
 
 async function createUser(req: Request, res: Response) {
 	const { telegramId, name, referredBy } = req.body
@@ -30,11 +30,11 @@ async function createUser(req: Request, res: Response) {
 	// check if referral account exist and update
 	const refAccount = await User.findOne({ referralCode: referredBy })
 	if (refAccount) {
-		user.coinsEarned += 500
+		user.goldEarned += 500
 		user.referredBy = referredBy
 		const refs = refAccount.referrals
 		refAccount.referrals = [...refs, referralCode]
-		refAccount.coinsEarned += 500
+		refAccount.goldEarned += 500
 
 		await refAccount.save()
 	}
@@ -46,8 +46,8 @@ async function createUser(req: Request, res: Response) {
 
 async function getUsers(req: Request, res: Response) {
 	const users = await User.find({})
-		.select("name coinsEarned")
-		.sort("-coinsEarned")
+		.select("name manxEarned goldEarned")
+		.sort("-manxEarned -goldEarned")
 
 	res.status(StatusCodes.OK).json({ data: users, NbHits: users.length })
 }
@@ -66,6 +66,9 @@ async function startFarming(req: IAuthUser, res: Response) {
 	const startTime = user.farm.startTime
 	const perHr = user.farm.perHr
 	const totalHrs = user.farm.totalHrs
+
+	if (user.ownedCats.length == 0)
+		throw new NotAllowedError("You do not own any cats")
 
 	if (startTime == 0) {
 		// means farm has ended or not started
@@ -151,7 +154,7 @@ async function claimFarmRewards(req: IAuthUser, res: Response) {
 	if (lastUpdate == endTime) {
 		// claim rewards
 		// reset to zero
-		user.coinsEarned += earned
+		user.manxEarned += earned
 		user.farm = {
 			startTime: 0,
 			lastUpdateTime: 0,
@@ -213,8 +216,8 @@ async function updateUserDailyRewards(req: IAuthUser, res: Response) {
 		await User.updateOne(
 			{ telegramId: id },
 			{
-				coinsEarned:
-					user.coinsEarned + user.dailyReward[user.dailyReward["currentDay"]],
+				goldEarned:
+					user.goldEarned + user.dailyReward[user.dailyReward["currentDay"]],
 				"dailyReward.totalRewardsEarned": totalEarned,
 				"dailyReward.currentDay": nextDay,
 				"dailyReward.startTime": timeInSec(),

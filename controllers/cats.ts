@@ -10,7 +10,7 @@ import {
 } from "../errors/index.js"
 
 async function getCats(req: IAuthUser, res: Response) {
-	const cats = await Cat.find({})
+	const cats = await Cat.find({}).sort("level")
 	res.status(StatusCodes.OK).json({ data: cats, nbHits: cats.length })
 }
 
@@ -36,7 +36,7 @@ async function buyCat(req: IAuthUser, res: Response) {
 
 	const user = (await User.findOne({ _id: userId }))! // user already verified in authentication
 
-	if (user.coinsEarned < cat.price)
+	if (user.goldEarned < cat.price)
 		throw new InsufficientBalanceError(
 			"you do not have enough coins to make the purchase"
 		)
@@ -72,7 +72,7 @@ async function buyCat(req: IAuthUser, res: Response) {
 		await user.updateOne({
 			ownedCats: newOwnedCats,
 			"farm.perHr": user.farm.perHr + cat.outputQuantity,
-			coinsEarned: user.coinsEarned - cat.price,
+			goldEarned: user.goldEarned - cat.price,
 		})
 	} else {
 		const newOwnedCat: OwnedCatType = {
@@ -86,7 +86,7 @@ async function buyCat(req: IAuthUser, res: Response) {
 		await user.updateOne({
 			ownedCats: newOwnedCats,
 			"farm.perHr": user.farm.perHr + cat.outputQuantity,
-			coinsEarned: user.coinsEarned - cat.price,
+			goldEarned: user.goldEarned - cat.price,
 		})
 	}
 
