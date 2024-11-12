@@ -1,5 +1,6 @@
 import { BadRequestError } from "../errors/index.js"
 import jwt from "jsonwebtoken"
+import bycrypt from "bcryptjs"
 
 function createJWT(id: string, name: string) {
 	const secret = process.env.JWT_SECRET
@@ -17,4 +18,9 @@ function timeInSec(addHrs = 0) {
 	return secs + inSecs
 }
 
-export { createJWT, timeInSec }
+async function validatePassword(userPassword: string, currPassword: string) {
+	const isValid = await bycrypt.compare(userPassword, currPassword)
+	return isValid
+}
+
+export { createJWT, timeInSec, validatePassword }

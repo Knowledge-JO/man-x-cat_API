@@ -71,6 +71,7 @@ export interface IUser {
 	referralCode: string
 	referredBy: string
 	ownedCats: OwnedCatType[]
+	completedTasks: Array<string>
 }
 
 const userSchema: Schema = new Schema(
@@ -117,6 +118,11 @@ const userSchema: Schema = new Schema(
 		},
 
 		ownedCats: {
+			type: Array,
+			required: false,
+			default: [],
+		},
+		completedTasks: {
 			type: Array,
 			required: false,
 			default: [],
