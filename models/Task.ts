@@ -2,11 +2,12 @@ import { model, Schema } from "mongoose"
 
 type TaskType = "telegram" | "twitter" | "web" | "others"
 
-interface ITask {
+export interface ITask {
 	title: string
 	type: TaskType
 	reward: number
-	imagePath: string
+	url: string
+	imagePath?: string
 }
 
 const taskSchema = new Schema(

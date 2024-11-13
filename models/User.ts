@@ -78,6 +78,8 @@ export interface IUser {
 	referredBy: string
 	ownedCats: OwnedCatType[]
 	completedTasks: Array<string>
+	tickets: number
+	taskTicketReward: number
 }
 
 const userSchema: Schema = new Schema(
@@ -132,6 +134,17 @@ const userSchema: Schema = new Schema(
 			type: Array,
 			required: false,
 			default: [],
+		},
+
+		tickets: {
+			type: Number,
+			required: false,
+			default: 0,
+		},
+		taskTicketReward: {
+			type: Number,
+			required: false,
+			default: 0,
 		},
 	},
 	{ timestamps: true }

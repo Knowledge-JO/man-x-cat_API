@@ -42,6 +42,7 @@ async function createUser(req: Request, res: Response) {
 
 		refAccount.referrals = [...refs, referredUserDets]
 		refAccount.goldEarned += 500
+		refAccount.tickets += 1
 
 		await refAccount.save()
 	}

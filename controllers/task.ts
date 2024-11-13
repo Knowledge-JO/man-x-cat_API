@@ -2,12 +2,10 @@ import { Request, Response } from "express"
 import { IAuthUser } from "../middlewares/authentication.js"
 import Task from "../models/Task.js"
 import { StatusCodes } from "http-status-codes"
-import { NotFoundError } from "../errors/index.js"
+import { NotAllowedError, NotFoundError } from "../errors/index.js"
 import User from "../models/User.js"
 
 async function createTask(req: Request, res: Response) {
-	const { title, type, imagePath, reward } = req.body
-
 	res.send("createTask")
 }
 
@@ -41,12 +39,28 @@ async function completeTask(req: IAuthUser, res: Response) {
 
 	const user = (await User.findOne({ _id: userId }))!
 
-	const completedTasks = [...user.completedTasks, taskId]
+	const completedTasks = user.completedTasks
+
+	if (completedTasks.includes(taskId))
+		throw new NotAllowedError("Task already completed")
+
+	const newCompletedTasks = [...user.completedTasks, taskId]
+
+	const ticketReward =
+		user.taskTicketReward + 1 > 3 ? 1 : user.taskTicketReward + 1
 
 	await user.updateOne({
-		completedTasks,
+		completedTasks: newCompletedTasks,
 		goldEarned: user.goldEarned + task.reward,
+		taskTicketReward: ticketReward,
 	})
+
+	const taskCount = user.taskTicketReward
+	if (taskCount == 3) {
+		await user.updateOne({
+			tickets: user.tickets + 1,
+		})
+	}
 
 	res.status(StatusCodes.OK).json({ message: "task completed", taskId })
 }
