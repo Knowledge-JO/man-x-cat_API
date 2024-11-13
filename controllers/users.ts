@@ -1,5 +1,5 @@
 import { Request, Response } from "express"
-import User, { DayType } from "../models/User.js"
+import User, { DayType, ReferralType } from "../models/User.js"
 import { StatusCodes } from "http-status-codes"
 import { createJWT, timeInSec } from "../utils/helpers.js"
 import ShortUniqueId from "short-unique-id"
@@ -33,7 +33,14 @@ async function createUser(req: Request, res: Response) {
 		user.goldEarned += 500
 		user.referredBy = referredBy
 		const refs = refAccount.referrals
-		refAccount.referrals = [...refs, referralCode]
+
+		const referredUserDets: ReferralType = {
+			name: req.body.name,
+			earned: 500,
+			referralCode,
+		}
+
+		refAccount.referrals = [...refs, referredUserDets]
 		refAccount.goldEarned += 500
 
 		await refAccount.save()

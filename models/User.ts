@@ -60,6 +60,12 @@ const farmDefaultData: FarmType = {
 	totalHrs: 3,
 }
 
+export type ReferralType = {
+	name: string
+	earned: number
+	referralCode: string
+}
+
 export interface IUser {
 	name: string
 	telegramId: number
@@ -67,7 +73,7 @@ export interface IUser {
 	goldEarned: number
 	farm: FarmType
 	dailyReward: DailyDataType
-	referrals: Array<string>
+	referrals: ReferralType[]
 	referralCode: string
 	referredBy: string
 	ownedCats: OwnedCatType[]
@@ -101,7 +107,7 @@ const userSchema: Schema = new Schema(
 		},
 
 		referrals: {
-			type: Array<string>,
+			type: Array,
 			required: false,
 			default: [],
 		},
