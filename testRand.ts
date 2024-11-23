@@ -1,28 +1,3 @@
-import { BadRequestError } from "../errors/index.js"
-import jwt from "jsonwebtoken"
-import bycrypt from "bcryptjs"
-
-function createJWT(id: string, name: string) {
-	const secret = process.env.JWT_SECRET
-	if (!secret) throw new BadRequestError("no secret token")
-
-	return jwt.sign({ userId: id, name }, secret, {
-		expiresIn: process.env.JWT_LIFETIME,
-	})
-}
-
-function timeInSec(addHrs = 0) {
-	const inSecs = addHrs * 3600
-	const secs = Date.now() / 1000
-
-	return secs + inSecs
-}
-
-async function validatePassword(userPassword: string, currPassword: string) {
-	const isValid = await bycrypt.compare(userPassword, currPassword)
-	return isValid
-}
-
 function weightedRandomChoice(
 	itemsWithProbs: { option: string; prob: number }[]
 ) {
@@ -56,4 +31,24 @@ function weightedRandomChoice(
 	}
 }
 
-export { createJWT, timeInSec, validatePassword, weightedRandomChoice }
+const items = [
+	{ option: "MANX", prob: 5, pize: 2 },
+	{ option: "400", prob: 20, prize: 400 },
+	{ option: "USDT", prob: 2, prize: 1 },
+	{
+		option: "500",
+		prob: 17,
+		prize: 500,
+	},
+	{
+		option: "image",
+		prob: 40,
+		prize: 100,
+	},
+	{ option: "600", prob: 7, prize: 600 },
+	{ option: "700", prob: 5, prize: 700 },
+	{ option: "800", prob: 4, prize: 800 },
+]
+
+const result = weightedRandomChoice(items)
+console.log(result)

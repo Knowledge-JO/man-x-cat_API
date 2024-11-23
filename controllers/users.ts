@@ -1,10 +1,15 @@
 import { Request, Response } from "express"
 import User, { DayType, ReferralType } from "../models/User.js"
 import { StatusCodes } from "http-status-codes"
-import { createJWT, timeInSec } from "../utils/helpers.js"
+import { createJWT, timeInSec, weightedRandomChoice } from "../utils/helpers.js"
 import ShortUniqueId from "short-unique-id"
 import { IAuthUser } from "../middlewares/authentication.js"
-import { BadRequestError, NotAllowedError } from "../errors/index.js"
+import {
+	BadRequestError,
+	InsufficientBalanceError,
+	NotAllowedError,
+} from "../errors/index.js"
+import Bot from "../models/Bot.js"
 
 async function createUser(req: Request, res: Response) {
 	const { telegramId, name, referredBy } = req.body
@@ -40,11 +45,11 @@ async function createUser(req: Request, res: Response) {
 			referralCode,
 		}
 
-		refAccount.referrals = [...refs, referredUserDets]
-		refAccount.goldEarned += 500
-		refAccount.tickets += 1
-
-		await refAccount.save()
+		await refAccount.updateOne({
+			referrals: [...refs, referredUserDets],
+			goldEarned: refAccount.goldEarned + 500,
+			tickets: refAccount.tickets + 1,
+		})
 	}
 
 	await user.save()
@@ -131,13 +136,10 @@ async function updateUserFarmData(req: IAuthUser, res: Response) {
 
 	const earnings = lostTime * earnPerSec
 
-	await User.updateOne(
-		{ telegramId: id },
-		{
-			"farm.lastUpdateTime": lastUpdate == endTime ? endTime : timeInSec(),
-			"farm.earned": earned + earnings,
-		}
-	)
+	await user.updateOne({
+		"farm.lastUpdateTime": lastUpdate == endTime ? endTime : timeInSec(),
+		"farm.earned": earned + earnings,
+	})
 	res.status(StatusCodes.OK).json({
 		earned,
 		maxEarning: perHr * totalHrs,
@@ -221,18 +223,15 @@ async function updateUserDailyRewards(req: IAuthUser, res: Response) {
 		const totalEarned =
 			user.dailyReward.totalRewardsEarned +
 			user.dailyReward[user.dailyReward["currentDay"]]
-		await User.updateOne(
-			{ telegramId: id },
-			{
-				goldEarned:
-					user.goldEarned + user.dailyReward[user.dailyReward["currentDay"]],
-				"dailyReward.totalRewardsEarned": totalEarned,
-				"dailyReward.currentDay": nextDay,
-				"dailyReward.startTime": timeInSec(),
-				"dailyReward.nextStartTime": timeInSec(24),
-				"dailyReward.resetTime": timeInSec(48),
-			}
-		)
+		await user.updateOne({
+			goldEarned:
+				user.goldEarned + user.dailyReward[user.dailyReward["currentDay"]],
+			"dailyReward.totalRewardsEarned": totalEarned,
+			"dailyReward.currentDay": nextDay,
+			"dailyReward.startTime": timeInSec(),
+			"dailyReward.nextStartTime": timeInSec(24),
+			"dailyReward.resetTime": timeInSec(48),
+		})
 
 		res.status(StatusCodes.OK).json({
 			currentDay: nextDay,
@@ -290,6 +289,165 @@ async function reset(id: number): Promise<boolean> {
 	return false
 }
 
+async function buyAutofarmBot(req: IAuthUser, res: Response) {
+	const { id } = req.params
+	const user = (await User.findOne({ telegramId: id }))!
+
+	const botPrice = (await Bot.find({}))[0].price
+
+	if (botPrice > user.goldEarned)
+		throw new InsufficientBalanceError("You do not have enough gold coins")
+
+	if (user.autoFarm.purchased) {
+		res.status(StatusCodes.OK).json({ message: "Bot is already purchased" })
+		return
+	}
+
+	await user.updateOne({
+		goldEarned: user.goldEarned - botPrice,
+		"autoFarm.purchased": true,
+	})
+
+	res
+		.status(StatusCodes.OK)
+		.json({ message: "Auto farm bot purchased succesfully" })
+}
+
+async function startAutoFarming(req: IAuthUser, res: Response) {
+	const { id } = req.params
+	const user = (await User.findOne({ telegramId: id }))!
+
+	const startTime = user.autoFarm.startTime
+
+	if (user.ownedCats.length == 0)
+		throw new NotAllowedError("You do not own any cats")
+
+	if (!user.autoFarm.purchased)
+		throw new NotAllowedError("Please purchase the auto farm bot")
+
+	if (startTime == 0) {
+		// means farm has ended or not started
+		// start farming
+
+		user.autoFarm = {
+			startTime: timeInSec(),
+			lastUpdateTime: timeInSec(),
+			endTime: timeInSec(24),
+			purchased: true,
+		}
+
+		await user.save()
+
+		res
+			.status(StatusCodes.ACCEPTED)
+			.json({ started: true, message: "Auto farming started" })
+		return
+	}
+
+	res
+		.status(StatusCodes.ACCEPTED)
+		.json({ started: true, message: "Auto farming in progess" })
+}
+
+async function updateAutoFarmData(req: IAuthUser, res: Response) {
+	// total hours - 24hrs
+
+	const { id } = req.params
+	const user = (await User.findOne({ telegramId: id }))! // user already verified in authentication
+
+	const startTime = user.autoFarm.startTime
+	const lastUpdateTime = user.autoFarm.lastUpdateTime
+	const endTime = user.autoFarm.endTime
+	const perHr = user.farm.perHr
+	const earned = user.manxEarned
+
+	if (startTime == 0) {
+		throw new BadRequestError("Auto farming not started")
+	}
+
+	const lastUpdate = timeInSec() > endTime ? endTime : lastUpdateTime
+
+	const earnPerSec = perHr / 3600
+
+	const lostTime =
+		lastUpdate == endTime ? endTime - lastUpdateTime : timeInSec() - lastUpdate
+
+	if (lastUpdate == endTime) {
+		const autoFarm = {
+			startTime: 0,
+			lastUpdateTime: 0,
+			endTime: 0,
+		}
+		await user.updateOne({ autoFarm })
+
+		res.status(StatusCodes.OK).json({
+			ended: true,
+			message: "Auto farming ended",
+		})
+
+		return
+	}
+
+	const earnings = lostTime * earnPerSec
+
+	await user.updateOne({
+		"autoFarm.lastUpdateTime": lastUpdate == endTime ? endTime : timeInSec(),
+		manxEarned: earned + earnings,
+	})
+
+	res.status(StatusCodes.OK).json({
+		earned: earned + earnings,
+		started: true,
+		ended: lastUpdate === endTime,
+		message: "Auto farming in progess",
+	})
+}
+
+const items = [
+	{ option: "MANX", prob: 5, pize: 2 },
+	{ option: "400", prob: 20, prize: 400 },
+	{ option: "USDT", prob: 2, prize: 1 },
+	{
+		option: "500",
+		prob: 17,
+		prize: 500,
+	},
+	{
+		option: "image",
+		prob: 40,
+		prize: 100,
+	},
+	{ option: "600", prob: 7, prize: 600 },
+	{ option: "700", prob: 5, prize: 700 },
+	{ option: "800", prob: 4, prize: 800 },
+]
+
+async function spinWheel(req: IAuthUser, res: Response) {
+	const { id } = req.params
+	const user = (await User.findOne({ telegramId: id }))! // user already verified in authentication
+
+	const tickets = user.tickets
+
+	if (tickets == 0) throw new NotAllowedError("You do not have enough tickets")
+
+	const prizeIndex = weightedRandomChoice(items)
+	const prize = items.find((item, index) => index == prizeIndex)
+
+	if (prize?.option !== "USDT" && prize?.option !== "MANX") {
+		await user.updateOne({ goldEarned: user.goldEarned + Number(prize?.prize) })
+	}
+
+	if (prize?.option == "MANX") {
+		await user.updateOne({ manxEarned: user.manxEarned + Number(prize?.prize) })
+	}
+
+	await user.updateOne({
+		tickets: tickets - 1,
+	})
+
+	res.status(StatusCodes.OK).json({ prizeIndex, prize })
+}
+
 export {
 	createUser,
 	getUsers,
@@ -299,4 +457,8 @@ export {
 	claimFarmRewards,
 	startFarming,
 	resetDailyRewards,
+	startAutoFarming,
+	updateAutoFarmData,
+	buyAutofarmBot,
+	spinWheel,
 }

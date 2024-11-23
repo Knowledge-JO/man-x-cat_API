@@ -51,6 +51,13 @@ type FarmType = {
 	totalHrs: number
 }
 
+type AutoFarmType = {
+	startTime: number
+	lastUpdateTime: number
+	endTime: number
+	purchased: boolean
+}
+
 const farmDefaultData: FarmType = {
 	startTime: 0,
 	lastUpdateTime: 0,
@@ -58,6 +65,13 @@ const farmDefaultData: FarmType = {
 	earned: 0,
 	perHr: 0,
 	totalHrs: 3,
+}
+
+const autoFarm: AutoFarmType = {
+	startTime: 0,
+	lastUpdateTime: 0,
+	endTime: 0,
+	purchased: false,
 }
 
 export type ReferralType = {
@@ -80,6 +94,7 @@ export interface IUser {
 	completedTasks: Array<string>
 	tickets: number
 	taskTicketReward: number
+	autoFarm: AutoFarmType
 }
 
 const userSchema: Schema = new Schema(
@@ -145,6 +160,12 @@ const userSchema: Schema = new Schema(
 			type: Number,
 			required: false,
 			default: 0,
+		},
+
+		autoFarm: {
+			type: Object,
+			required: false,
+			default: autoFarm,
 		},
 	},
 	{ timestamps: true }
