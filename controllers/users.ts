@@ -83,6 +83,9 @@ async function startFarming(req: IAuthUser, res: Response) {
 	if (user.ownedCats.length == 0)
 		throw new NotAllowedError("You do not own any cats")
 
+	if (user.autoFarm.startTime > 0)
+		throw new NotAllowedError("Auto farming is active")
+
 	if (startTime == 0) {
 		// means farm has ended or not started
 		// start farming
@@ -322,8 +325,8 @@ async function startAutoFarming(req: IAuthUser, res: Response) {
 	if (user.ownedCats.length == 0)
 		throw new NotAllowedError("You do not own any cats")
 
-	if (!user.autoFarm.purchased)
-		throw new NotAllowedError("Please purchase the auto farm bot")
+	// if (!user.autoFarm.purchased)
+	// 	throw new NotAllowedError("Please purchase the auto farm bot")
 
 	if (startTime == 0) {
 		// means farm has ended or not started
@@ -381,7 +384,9 @@ async function updateAutoFarmData(req: IAuthUser, res: Response) {
 		await user.updateOne({ autoFarm })
 
 		res.status(StatusCodes.OK).json({
+			started: false,
 			ended: true,
+			earned,
 			message: "Auto farming ended",
 		})
 
@@ -404,20 +409,20 @@ async function updateAutoFarmData(req: IAuthUser, res: Response) {
 }
 
 const items = [
-	{ option: "MANX", prob: 5, pize: 2 },
-	{ option: "400", prob: 20, prize: 400 },
+	{ option: "MANX", prob: 8, prize: 2 },
+	{ option: "400", prob: 35, prize: 400 },
 	{ option: "USDT", prob: 2, prize: 1 },
 	{
 		option: "500",
-		prob: 17,
+		prob: 27,
 		prize: 500,
 	},
 	{
 		option: "image",
-		prob: 40,
-		prize: 100,
+		prob: 5,
+		prize: 4,
 	},
-	{ option: "600", prob: 7, prize: 600 },
+	{ option: "600", prob: 14, prize: 600 },
 	{ option: "700", prob: 5, prize: 700 },
 	{ option: "800", prob: 4, prize: 800 },
 ]
@@ -437,8 +442,8 @@ async function spinWheel(req: IAuthUser, res: Response) {
 		await user.updateOne({ goldEarned: user.goldEarned + Number(prize?.prize) })
 	}
 
-	if (prize?.option == "MANX") {
-		await user.updateOne({ manxEarned: user.manxEarned + Number(prize?.prize) })
+	if (prize?.option == "MANX" || prize?.option == "image") {
+		await user.updateOne({ manxEarned: user.manxEarned + Number(prize.prize) })
 	}
 
 	await user.updateOne({
